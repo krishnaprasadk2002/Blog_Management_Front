@@ -44,7 +44,7 @@ export class LoginComponent implements OnInit {
             icon: 'success',
             confirmButtonText: 'Okay',
           }).then(() => {
-            this.router.navigate(['/dashboard']);
+            this.router.navigate(['/home']);
           }); 
         },
         error:(error)=>{
