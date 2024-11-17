@@ -1,0 +1,14 @@
+/* Add to your styles.css or component styles */
+:root {
+    --primary: #4F46E5; /* Indigo-600, you can change this */
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  

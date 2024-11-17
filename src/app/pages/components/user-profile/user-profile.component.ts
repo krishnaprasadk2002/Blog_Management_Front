@@ -7,6 +7,8 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalComponent } from '../../../shared/components/reusables/modal/modal.component';
 import { InputFieldsComponent } from '../../../shared/components/reusables/input-fields/input-fields.component';
+import { AuthService } from '../../../core/services/auth.service';
+import { Router } from '@angular/router';
 
 
 @Component({
@@ -19,19 +21,25 @@ import { InputFieldsComponent } from '../../../shared/components/reusables/input
 export class UserProfileComponent implements OnInit {
 
   private blogServices = inject(BlogService)
+  private authService = inject(AuthService)
+  private router = inject(Router)
   private fb = inject(FormBuilder)
   userData: UserReponse | null = null;
   blogs: IBlog[] = [];
   addBlogForm!: FormGroup;
+  addEditBlogForm!: FormGroup;
   isBlogModal = false;
+  isEditBlogModal = false;
   imagePreview: string | null = null;
+  expandedBlogs = new Set<string>();
+  currentEditBlogId!: string
 
   constructor() { }
 
   ngOnInit() {
     this.getUserData();
     this.initializeForm();
-    // this.getBlogs();
+    this.getBlogs();
   }
 
   initializeForm() {
@@ -39,8 +47,15 @@ export class UserProfileComponent implements OnInit {
       title: ['', Validators.required],
       category: ['', Validators.required],
       content: ['', Validators.required],
-      image: [null], // Validators for file upload are optional
-      tags: [''], // No validation by default
+      image: [null],
+      tags: [''],
+    });
+    this.addEditBlogForm = this.fb.group({
+      title: ['', Validators.required],
+      category: ['', Validators.required],
+      content: ['', Validators.required],
+      image: [null],
+      tags: [''],
     });
   }
 
@@ -58,46 +73,149 @@ export class UserProfileComponent implements OnInit {
       }
     });
   }
-  // getBlogs(): void {
-  //   this.blogService.getUserBlogs().subscribe({
-  //     next: (blogs) => {
-  //       this.blogs = blogs;
-  //     },
-  //     error: (error) => {
-  //       console.error('Error fetching blogs:', error);
-  //       this.handleError(error);
-  //     }
-  //   });
-  // }
-
-  onEdit(): void {
-    // Implement edit profile logic
-  }
 
   onEditBlog(blogId: string): void {
-    // Implement edit blog logic
+    this.currentEditBlogId = blogId;
+    this.blogServices.getBlogDetails(blogId).subscribe({
+      next: (blog) => {
+        this.addEditBlogForm.patchValue({
+          title: blog.title || '',
+          category: blog.category || '',
+          content: blog.content || '',
+          tags: blog.tags ? blog.tags.join(', ') : '',
+          image: blog.image || null,
+        });
+        this.imagePreview = blog.image || null;
+        this.openEditBlogModal();
+      },
+      error: (error) => {
+        console.error('Error fetching blog details:', error);
+        Swal.fire({
+          title: 'Error',
+          text: error?.message || 'Failed to fetch blog details. Please try again.',
+          icon: 'error',
+          confirmButtonText: 'OK',
+        });
+      },
+    });
   }
 
-  onDeleteBlog(blogId: string): void {
-    // if (confirm('Are you sure you want to delete this blog?')) {
-    //   this.blogService.deleteBlog(blogId).subscribe({
-    //     next: () => {
-    //       this.blogs = this.blogs.filter(blog => blog._id !== blogId);
-    //     },
-    //     error: (error) => {
-    //       console.error('Error deleting blog:', error);
-    //       this.handleError(error);
-    //     }
-    //   });
-    // }
+  private trimFormValues(): void {
+    Object.keys(this.addEditBlogForm.controls).forEach((key) => {
+      const control = this.addEditBlogForm.get(key);
+      if (control && typeof control.value === 'string' && control.value !== null) {
+        control.setValue(control.value.trim());
+      }
+    });
   }
+
+  onEditImageSelected(event: Event): void {
+    const file = (event.target as HTMLInputElement).files?.[0];
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        this.imagePreview = base64String;
+        this.addEditBlogForm.patchValue({ image: base64String });
+        this.addEditBlogForm.get('image')?.updateValueAndValidity();
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  oneEditBlogSubmit(): void {
+    this.trimFormValues();
+
+    if (this.addEditBlogForm.valid) {
+      const blogData: IBlog = {
+        _id: this.currentEditBlogId,
+        ...this.addEditBlogForm.value,
+        tags: this.addEditBlogForm.value.tags
+          .split(',')
+          .map((tag: string) => tag.trim())
+          .filter((tag: any) => tag),
+      };
+
+      this.blogServices.updateBlogData(blogData).subscribe({
+        next: (response) => {
+          Swal.fire({
+            title: 'Success!',
+            text: 'Blog successfully updated!',
+            icon: 'success',
+            confirmButtonText: 'OK',
+          }).then(() => {
+            this.closeEditBlogModal();
+            this.getBlogs();
+          });
+        },
+        error: (error) => {
+          console.error('Error updating blog:', error);
+          this.handleError(error);
+        },
+      });
+    } else {
+      Swal.fire({
+        title: 'Invalid Form',
+        text: 'Please fill in all required fields correctly before submitting.',
+        icon: 'warning',
+        confirmButtonText: 'OK',
+      });
+    }
+  }
+
+
+
+
+
+  onDeleteBlog(blogId: string): void {
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'Do you want to delete this blog?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.blogServices.deleteBlog(blogId).subscribe({
+          next: () => {
+            Swal.fire({
+              title: 'Deleted!',
+              text: 'The blog has been deleted.',
+              icon: 'success',
+              confirmButtonText: 'OK',
+            }).then(() => {
+              this.getBlogs(); // Refresh the blog list after deletion
+            });
+          },
+          error: (error) => {
+            Swal.fire({
+              title: 'Error!',
+              text: 'There was an issue deleting the blog.',
+              icon: 'error',
+              confirmButtonText: 'OK',
+            });
+          },
+        });
+      }
+    });
+  }
+
 
   openCreateBlogModal() {
     this.isBlogModal = true
   }
+  openEditBlogModal() {
+    this.isEditBlogModal = true
+  }
 
   closeBlogModal() {
     this.isBlogModal = false
+  }
+  closeEditBlogModal() {
+    this.isEditBlogModal = false
   }
 
   handleError(error: any): void {
@@ -127,7 +245,6 @@ export class UserProfileComponent implements OnInit {
   }
 
 
-
   onAddBlogSubmit(): void {
     if (this.addBlogForm.valid) {
       const blogData: IBlog = {
@@ -142,6 +259,7 @@ export class UserProfileComponent implements OnInit {
       this.blogServices.createBlog(blogData).subscribe({
         next: (response) => {
           console.log('Blog successfully created:', response);
+          this.blogs.push(response);
           Swal.fire({
             title: 'Success!',
             text: 'Blog successfully created!',
@@ -149,6 +267,11 @@ export class UserProfileComponent implements OnInit {
             confirmButtonText: 'OK',
           }).then(() => {
             this.addBlogForm.reset();
+            this.imagePreview = null;
+            const fileInput: HTMLInputElement = document.querySelector('#image')!;
+            if (fileInput) {
+              fileInput.value = '';
+            }
             this.closeBlogModal();
           });
         },
@@ -182,5 +305,57 @@ export class UserProfileComponent implements OnInit {
   }
 
 
+  getBlogs() {
+    try {
+      this.blogServices.getAllBlogs().subscribe({
+        next: (response) => {
+          console.log('blog Data', response);
+          this.blogs = response;
+        },
+        error: (error) => {
+          console.error('Error fetching blogs:', error);
+        },
+      });
+    } catch (error) {
+
+    }
+  }
+  isExpanded(blogId: string): boolean {
+    return this.expandedBlogs.has(blogId);
+  }
+
+  toggleExpand(blogId: string) {
+    if (this.expandedBlogs.has(blogId)) {
+      this.expandedBlogs.delete(blogId);
+    } else {
+      this.expandedBlogs.add(blogId);
+    }
+  }
+
+  onLogout(): void {
+    Swal.fire({
+      title: 'Are you sure?',
+      text: 'You are about to log out!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, log me out!',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.authService.logoutUser().subscribe({
+          next: (response) => {
+            console.log('Logout successful:', response);
+            Swal.fire('Logged out!', 'You have been logged out successfully.', 'success');
+            this.router.navigate(['/login']);
+          },
+          error: (error) => {
+            console.error('Logout failed:', error);
+            Swal.fire('Error!', 'Something went wrong during logout.', 'error');
+          },
+        });
+      }
+    });
+  }
 
 }

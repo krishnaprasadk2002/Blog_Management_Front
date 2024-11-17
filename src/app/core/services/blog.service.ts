@@ -20,21 +20,59 @@ export class BlogService {
     return this.http.get<ApiResponse<UserReponse>>(`${this.apiUrl}/blog/userDetails`).pipe(
       catchError((error) => {
         console.error('Error fetching user details:', error);
-        return throwError(() => error); 
+        return throwError(() => error);
       })
     );
   }
 
-  createBlog(blogData: IBlog): Observable<string> {
-    return this.http.post<string>(`${this.apiUrl}/blog/createBlog`, blogData).pipe(
+  createBlog(blogData: IBlog): Observable<IBlog> {
+    return this.http.post<IBlog>(`${this.apiUrl}/blog/createBlog`, blogData).pipe(
       catchError((error) => {
         console.error('Error creating blog:', error.message || error);
-        return throwError(() => error); 
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // User Details Getting
+  getAllBlogs(): Observable<IBlog[]> {
+    return this.http.get<IBlog[]>(`${this.apiUrl}/blog/getBlogDetails`).pipe(
+      catchError((error) => {
+        console.error('Error fetching blog details:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // Fetch Blog Details
+  getBlogDetails(blogId: string): Observable<IBlog> {
+    return this.http.get<IBlog>(`${this.apiUrl}/blog/blogDetails`, { params: { blogId } }).pipe(
+      catchError((error) => {
+        console.error('Error fetching blog details:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  //Edit Blog
+  updateBlogData(blog: IBlog): Observable<IBlog> {
+    return this.http.put<IBlog>(`${this.apiUrl}/blog/updateBlog`, blog).pipe(
+      catchError((error) => {
+        console.error('Error updating blog:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  //Delete Blog
+  deleteBlog(blogId: string): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/blog/delete/${blogId}`).pipe(
+      catchError((error) => {
+        console.error('Error deleting blog:', error);
+        return throwError(() => error);
       })
     );
   }
   
-
-
-
+  
 }

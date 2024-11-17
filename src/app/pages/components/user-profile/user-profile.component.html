@@ -4,7 +4,15 @@
       <div class="mb-8 border-l-4 border-r-4 border-gray-900 px-6 py-4 bg-white rounded-lg shadow-md">
         <h1 class="text-3xl font-bold text-gray-900">My Dashboard</h1>
         <p class="text-gray-600">Manage your profile and blog posts</p>
-      </div>
+    
+        <!-- Logout Button -->
+        <button
+            (click)="onLogout()"
+            class="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-opacity-50">
+            Logout
+        </button>
+    </div>
+    
   
       <div class="flex flex-col lg:flex-row gap-8">
         <!-- Left Column - User Profile -->
@@ -56,17 +64,6 @@
                   </div>
                 </div>
               </div>
-  
-              <div class="mt-8">
-                <button 
-                  (click)="onEdit()"
-                  class="w-full px-4 py-3 text-white bg-gray-900 rounded-lg hover:bg-gray-800 focus:ring-4 focus:ring-gray-300 transition duration-200 ease-in-out flex items-center justify-center space-x-2 shadow-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                  <span>Edit Profile</span>
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -88,11 +85,11 @@
                 </button>
               </div>
             </div>
-  
-            <!-- Blog List with hover effects -->
+
             <div class="divide-y divide-gray-100">
               <div *ngFor="let blog of blogs" 
                    class="p-6 hover:bg-gray-50 transition duration-150 group cursor-pointer">
+                <!-- Blog Preview -->
                 <div class="flex justify-between items-start">
                   <div class="space-y-2">
                     <div class="flex items-center space-x-2">
@@ -101,19 +98,24 @@
                         {{blog.category}}
                       </span>
                     </div>
-                    <p class="text-gray-600 line-clamp-2">{{blog.content}}</p>
+                    <p class="text-gray-600" [class.line-clamp-2]="!isExpanded(blog._id!)">{{blog.content}}</p>
+                    <button 
+                      (click)="toggleExpand(blog._id!)"
+                      class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                      {{ isExpanded(blog._id!) ? 'Show Less' : 'Read More' }}
+                    </button>
                   </div>
-  
+        
                   <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button 
-                      (click)="onEditBlog('$event')"
+                      (click)="onEditBlog(blog._id!)"
                       class="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition duration-200">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
                     <button 
-                      (click)="onDeleteBlog('$event')"
+                      (click)="onDeleteBlog(blog._id!)"
                       class="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition duration-200">
                       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -121,7 +123,24 @@
                     </button>
                   </div>
                 </div>
-  
+        
+                <!-- Expanded Details -->
+                <div *ngIf="isExpanded(blog._id!)" class="mt-4 space-y-4">
+                  <!-- Blog Image -->
+                  <div *ngIf="blog.image" class="relative w-full h-64 rounded-lg overflow-hidden">
+                    <img 
+                      [src]="blog.image" 
+                      [alt]="blog.title"
+                      class="w-full h-full object-cover"
+                    />
+                  </div>
+        
+                  <!-- Full Content -->
+                  <div class="prose max-w-none">
+                    <p class="text-gray-600">{{blog.content}}</p>
+                  </div>
+                </div>
+        
                 <div class="mt-4 flex items-center justify-between">
                   <div class="flex flex-wrap gap-2">
                     <span 
@@ -158,6 +177,7 @@
       </div>
     </div>
   </div>
+
   <app-modal [isOpen]="isBlogModal" [title]="'Add Blog'" (closeModal)="closeBlogModal()">
     <form *ngIf="addBlogForm" [formGroup]="addBlogForm" (ngSubmit)="onAddBlogSubmit()">
       <!-- Title Input -->
@@ -186,7 +206,7 @@
         ></textarea>
       </div>
   
-      <!-- Image Upload -->
+     <!-- Image Upload -->
       <div class="mb-4">
         <label for="image" class="block text-gray-700 text-sm font-bold mb-2">Image</label>
         <input
@@ -197,6 +217,7 @@
         />
         <img *ngIf="imagePreview" [src]="imagePreview" alt="Image preview" class="mt-4 rounded-lg max-h-32" />
       </div>
+
   
       <!-- Tags Input -->
       <app-input-fields 
@@ -213,6 +234,67 @@
           class="w-full shadow-xl py-3 px-4 text-sm tracking-wide rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
         >
           Submit Blog
+        </button>
+      </div>
+    </form>
+  </app-modal>
+
+  <app-modal [isOpen]="isEditBlogModal" [title]="'Edit Blog'" (closeModal)="closeEditBlogModal()">
+    <form *ngIf="addEditBlogForm" [formGroup]="addEditBlogForm" (ngSubmit)="oneEditBlogSubmit()">
+      <!-- Title Input -->
+      <app-input-fields 
+        [label]="'Title'" 
+        [type]="'text'" 
+        formControlName="title">
+      </app-input-fields>
+  
+      <!-- Category Input -->
+      <app-input-fields 
+        [label]="'Category'" 
+        [type]="'text'" 
+        formControlName="category">
+      </app-input-fields>
+  
+      <!-- Content Input -->
+      <div class="mb-4">
+        <label for="content" class="block text-gray-700 text-sm font-bold mb-2">Content</label>
+        <textarea
+          id="content"
+          formControlName="content"
+          class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+          rows="5"
+          placeholder="Enter blog content"
+        ></textarea>
+      </div>
+  
+     <!-- Image Upload -->
+      <div class="mb-4">
+        <label for="image" class="block text-gray-700 text-sm font-bold mb-2">Image</label>
+        <input
+          type="file"
+          id="image"
+          (change)="onEditImageSelected($event)"
+          class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+        />
+        <img *ngIf="imagePreview" [src]="imagePreview" alt="Image preview" class="mt-4 rounded-lg max-h-32" />
+      </div>
+
+  
+      <!-- Tags Input -->
+      <app-input-fields 
+        [label]="'Tags'" 
+        [type]="'text'" 
+        formControlName="tags">
+      </app-input-fields>
+      <p class="text-xs text-gray-600 mt-1">Separate tags with commas</p>
+  
+      <!-- Submit Button -->
+      <div class="!mt-8">
+        <button
+          type="submit"
+          class="w-full shadow-xl py-3 px-4 text-sm tracking-wide rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+        >
+          Update Blog
         </button>
       </div>
     </form>
