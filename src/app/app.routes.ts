@@ -9,6 +9,11 @@ import { userAuthGuard } from './core/guards/auth-log.guard';
 
 export const routes: Routes = [
     {
+        path:'',
+        redirectTo:'login',
+        pathMatch:'full'
+    },
+    {
         path: 'home',
         component: DashboardComponent,
         canActivate: [authGuard] 
